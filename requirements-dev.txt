@@ -1,0 +1,5 @@
+-r requirements.txt
+pytest>=7.4
+reportlab>=4.0      # only for tools/generate_sample_reports.py and some tests
+pypdf>=4.0          # only for tests (encrypted / mixed PDFs)
+playwright>=1.40    # only for tests/e2e_playwright.py
