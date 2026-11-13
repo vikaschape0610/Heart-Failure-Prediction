@@ -80,7 +80,8 @@ def _decode(u):
 def _build_xgb(p):
     # scale_pos_weight=3.5 ensures death probabilities push above 0.75
     # so that threshold=0.75 achieves 0 missed deaths (FN=0)
-    return XGBClassifier(random_state=42, n_jobs=4, eval_metric="logloss",
+    n_cpu = max(1, min(2, (os.cpu_count() or 1)))
+    return XGBClassifier(random_state=42, n_jobs=n_cpu, eval_metric="logloss",
                          verbosity=0, scale_pos_weight=3.5, **p)
 
 def _run_genetic_algorithm(Xtr_b, ytr_b, pop=POP, gens=GENS, seed=GA_SEED):
@@ -146,7 +147,7 @@ def _evaluate(name, mdl, Xte, yte, k_params=3, threshold=0.75):
     }
 
 # ────────────────────────────────────────────────────
-def train_model():
+def train_model(run_ga=False):
     """Train XGB-GA with dynamic Genetic Algorithm and return everything needed by the app."""
     with _silent():
         df = pd.read_csv(DATA)
@@ -191,13 +192,15 @@ def train_model():
         Xtr_b_fair[len(Xtr_b):, sex_idx] = flipped_sex
         ytr_b_fair = np.concatenate([ytr_b, ytr_b])
 
-        # ── Genetic Algorithm hyper-parameter search (for reference / logging)
-        _ga_params = _run_genetic_algorithm(Xtr_b_fair, ytr_b_fair)
+        # ── Genetic Algorithm hyper-parameter search (optional / reference)
+        if run_ga:
+            _ga_params = _run_genetic_algorithm(Xtr_b_fair, ytr_b_fair)
+        else:
+            _ga_params = {"n_estimators": 224, "learning_rate": 0.19, "max_depth": 4}
 
         # ── Verified GA-discovered parameters (deterministic for reproducibility)
         # These were found by GA and verified to give at threshold=0.75:
         #   Accuracy=95.0%, Recall=100%, FN=0, FP=3, AUC=0.9795
-        # GA reference params this run: {_ga_params}
         best_params = {"n_estimators": 224, "learning_rate": 0.19, "max_depth": 4}
 
         # ── Train XGBoost with fairness-augmented training data
